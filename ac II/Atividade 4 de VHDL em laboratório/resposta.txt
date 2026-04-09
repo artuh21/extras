@@ -1,0 +1,164 @@
+--------- meiosomador.vhd ---------
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity meio_somador is
+  port(
+    a : in  std_logic;
+    b : in  std_logic;
+    soma : out std_logic;
+    carry : out std_logic
+  );
+end meio_somador;
+
+architecture rtl of meio_somador is
+begin
+  soma <= a xor b;
+  carry <= a and b;
+end rtl;
+
+
+--------- somadorcompleto.vhd ---------
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity somadorcompleto is
+  port(
+    a : in  std_logic;
+    b : in  std_logic;
+    cin : in  std_logic;
+    soma : out std_logic;
+    cout : out std_logic
+  );
+end somadorcompleto;
+
+architecture estrutural of somadorcompleto is
+  component meio_somador is
+    port(
+      a : in  std_logic;
+      b : in  std_logic;
+      soma : out std_logic;
+      carry : out std_logic
+    );
+  end component;
+
+  signal s1 : std_logic;
+  signal c1, c2  : std_logic;
+begin
+  ms1: meio_somador port map(a => a, b => b, soma => s1, carry => c1);
+  ms2: meio_somador port map(a => s1, b => cin, soma => soma, carry => c2);
+  cout <= c1 or c2;
+end estrutural;
+
+
+--------- mux2x1.vhd ---------
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity mux2x1 is
+  port(
+    e1 : in  std_logic;
+    e2 : in  std_logic;
+    sel : in  std_logic;
+    s : out std_logic
+  );
+end mux2x1;
+
+architecture rtl of mux2x1 is
+begin
+  with sel select
+    s <= e1 when '0',
+         e2 when others;
+end rtl;
+
+
+--------- ula.vhd ---------
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity ula is
+  port(
+    a : in  std_logic;
+    b : in  std_logic;
+    cin : in  std_logic;
+    sel : in  std_logic;
+    saida : out std_logic;
+    carryout : out std_logic
+  );
+end ula;
+
+architecture estrutural of ula is
+  component somadorcompleto is
+    port(
+      a : in  std_logic;
+      b : in  std_logic;
+      cin : in  std_logic;
+      soma : out std_logic;
+      cout : out std_logic
+    );
+  end component;
+
+  component mux2x1 is
+    port(
+      e1 : in  std_logic;
+      e2 : in  std_logic;
+      sel : in  std_logic;
+      s : out std_logic
+    );
+  end component;
+
+  signal s_soma : std_logic;
+  signal s_cout : std_logic;
+  signal s_and : std_logic;
+begin
+  fa: somadorcompleto port map(a => a, b => b, cin => cin, soma => s_soma, cout => s_cout);
+  s_and <= a and b;
+  m: mux2x1 port map(e1 => s_soma, e2 => s_and, sel => sel, s => saida);
+  carryout <= s_cout;
+end estrutural;
+
+
+--------- testbench.vhd ---------
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity ula_tb is
+end ula_tb;
+
+architecture sim of ula_tb is
+  component ula is
+    port(
+      a : in  std_logic;
+      b : in  std_logic;
+      cin : in  std_logic;
+      sel : in  std_logic;
+      saida : out std_logic;
+      carryout : out std_logic
+    );
+  end component;
+
+  signal a, b, cin, sel : std_logic := '0';
+  signal saida, carryout: std_logic;
+begin
+  dut: ula port map(a => a, b => b, cin => cin, sel => sel, saida => saida, carryout => carryout);
+
+  stim: process
+  begin
+    sel <= '0';
+    for v in 0 to 7 loop
+      a <= std_logic'val((v / 4) mod 2);
+      b <= std_logic'val((v / 2) mod 2);
+      cin <= std_logic'val(v mod 2);
+      wait for 10 ns;
+    end loop;
+
+    sel <= '1';
+    for v in 0 to 7 loop
+      a <= std_logic'val((v / 4) mod 2);
+      b <= std_logic'val((v / 2) mod 2);
+      cin <= std_logic'val(v mod 2);
+      wait for 10 ns;
+    end loop;
+    wait;
+  end process;
+end sim;
